@@ -84,6 +84,16 @@
             <h3>Resumen Financiero</h3>
             <p>Vista general de tu situación financiera</p>
           </div>
+
+          <div 
+            class="menu-card" 
+            @click="navigateTo('/dashboard/comportamientos-extranos')"
+            :class="{ active: currentView === 'comportamientos-extranos' }"
+          >
+            <div class="menu-icon">🚨</div>
+            <h3>Comportamientos Extraños</h3>
+            <p>Actividades sospechosas detectadas</p>
+          </div>
         </div>
       </div>
 
@@ -122,6 +132,10 @@
         <div v-else-if="currentView === 'resumen'" class="view-content">
           <ResumenFinanciero />
         </div>
+
+        <div v-else-if="currentView === 'comportamientos-extranos'" class="view-content">
+          <ComportamientosExtranos />
+        </div>
       </div>
     </div>
   </div>
@@ -139,6 +153,7 @@ import AdministrarPresupuestos from '../components/AdministrarPresupuestos.vue'
 import AdministrarPresupuestosCategorias from '../components/AdministrarPresupuestosCategorias.vue'
 import ResumenFinanciero from '../components/ResumenFinanciero.vue'
 import LogEventos from '../components/LogEventos.vue'
+import ComportamientosExtranos from '../components/ComportamientosExtranos.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -154,6 +169,7 @@ const currentView = computed(() => {
   if (path.includes('/presupuestos')) return 'presupuestos'
   if (path.includes('/historial')) return 'historial'
   if (path.includes('/resumen')) return 'resumen'
+  if (path.includes('/comportamientos-extranos')) return 'comportamientos-extranos'
   return 'default'
 })
 

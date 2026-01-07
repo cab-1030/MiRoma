@@ -2,6 +2,7 @@ package com.miroma.miroma.controller;
 
 import com.miroma.miroma.dto.PresupuestoRequest;
 import com.miroma.miroma.dto.PresupuestoResponse;
+import com.miroma.miroma.security.SecurityUtils;
 import com.miroma.miroma.service.PresupuestoService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,10 +21,13 @@ public class PresupuestoController {
     @Autowired
     private PresupuestoService presupuestoService;
 
+    @Autowired
+    private SecurityUtils securityUtils;
+
     @PostMapping
     public ResponseEntity<?> crearPresupuesto(
-            @RequestAttribute("userId") Integer userId,
             @Valid @RequestBody PresupuestoRequest request) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             PresupuestoResponse response = presupuestoService.crearPresupuesto(userId, request);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -40,7 +44,8 @@ public class PresupuestoController {
     }
 
     @GetMapping
-    public ResponseEntity<?> obtenerPresupuestos(@RequestAttribute("userId") Integer userId) {
+    public ResponseEntity<?> obtenerPresupuestos() {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             List<PresupuestoResponse> presupuestos = presupuestoService.obtenerPresupuestosPorUsuario(userId);
             return ResponseEntity.ok(presupuestos);
@@ -57,9 +62,8 @@ public class PresupuestoController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> obtenerPresupuestoPorId(
-            @PathVariable Integer id,
-            @RequestAttribute("userId") Integer userId) {
+    public ResponseEntity<?> obtenerPresupuestoPorId(@PathVariable Integer id) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             PresupuestoResponse presupuesto = presupuestoService.obtenerPresupuestoPorId(id, userId);
             return ResponseEntity.ok(presupuesto);
@@ -78,8 +82,8 @@ public class PresupuestoController {
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizarPresupuesto(
             @PathVariable Integer id,
-            @RequestAttribute("userId") Integer userId,
             @Valid @RequestBody PresupuestoRequest request) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             PresupuestoResponse response = presupuestoService.actualizarPresupuesto(id, userId, request);
             return ResponseEntity.ok(response);
@@ -96,9 +100,8 @@ public class PresupuestoController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> eliminarPresupuesto(
-            @PathVariable Integer id,
-            @RequestAttribute("userId") Integer userId) {
+    public ResponseEntity<?> eliminarPresupuesto(@PathVariable Integer id) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             presupuestoService.eliminarPresupuesto(id, userId);
             Map<String, String> response = new HashMap<>();

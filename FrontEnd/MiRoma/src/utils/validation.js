@@ -152,26 +152,62 @@ export function validateAndSanitizePhone(phone) {
 }
 
 /**
- * Valida una contraseña (solo verifica longitud y caracteres básicos)
+ * Valida una contraseña con requisitos de seguridad
+ * Requisitos:
+ * - Mínimo 12 caracteres
+ * - Al menos una mayúscula
+ * - Al menos una minúscula
+ * - Al menos un carácter especial
  * @param {string} password - La contraseña a validar
- * @returns {boolean} - true si es válida, false si no
+ * @returns {object} - { valid: boolean, message: string }
  */
 export function validatePassword(password) {
   if (!password || typeof password !== 'string') {
-    return false;
+    return { valid: false, message: 'La contraseña es requerida' };
   }
   
   // Longitud mínima
-  if (password.length < 6) {
-    return false;
+  if (password.length < 12) {
+    return { 
+      valid: false, 
+      message: 'La contraseña debe tener al menos 12 caracteres' 
+    };
   }
   
   // Longitud máxima razonable
   if (password.length > 128) {
-    return false;
+    return { 
+      valid: false, 
+      message: 'La contraseña no puede exceder 128 caracteres' 
+    };
   }
   
-  return true;
+  // Verificar que tenga al menos una mayúscula
+  if (!/[A-Z]/.test(password)) {
+    return { 
+      valid: false, 
+      message: 'La contraseña debe contener al menos una letra mayúscula' 
+    };
+  }
+  
+  // Verificar que tenga al menos una minúscula
+  if (!/[a-z]/.test(password)) {
+    return { 
+      valid: false, 
+      message: 'La contraseña debe contener al menos una letra minúscula' 
+    };
+  }
+  
+  // Verificar que tenga al menos un carácter especial
+  // Caracteres especiales permitidos: !@#$%^&*()_+-=[]{}|;:,.<>?
+  if (!/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password)) {
+    return { 
+      valid: false, 
+      message: 'La contraseña debe contener al menos un carácter especial (!@#$%^&*()_+-=[]{}|;:,.<>?)' 
+    };
+  }
+  
+  return { valid: true, message: '' };
 }
 
 /**

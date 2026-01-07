@@ -4,6 +4,7 @@ import com.miroma.miroma.dto.EgresoRequest;
 import com.miroma.miroma.dto.EgresoResponse;
 import com.miroma.miroma.entity.*;
 import com.miroma.miroma.repository.*;
+import com.miroma.miroma.entity.PresupuestoCategoria;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +40,12 @@ public class EgresoService {
     private PresupuestoRepository presupuestoRepository;
 
     @Autowired
+    private PresupuestoCategoriaRepository presupuestoCategoriaRepository;
+
+    @Autowired
+    private PresupuestoCategoriaService presupuestoCategoriaService;
+
+    @Autowired
     private LogEventoService logEventoService;
 
     @Transactional
@@ -63,6 +70,24 @@ public class EgresoService {
         
         if (!presupuesto.getParejaId().equals(parejaId)) {
             throw new IllegalArgumentException("El período no pertenece a tu pareja");
+        }
+
+        // Validar que existe un presupuesto para esta categoría en este período
+        PresupuestoCategoria presupuestoCategoria = presupuestoCategoriaRepository
+                .findByPresupuestoIdAndCategoriaId(request.getPeriodoId(), request.getCategoriaId())
+                .orElse(null);
+        
+        if (presupuestoCategoria == null) {
+            throw new IllegalArgumentException("No existe un presupuesto asignado para esta categoría en el período seleccionado");
+        }
+
+        // Calcular el monto disponible antes de crear el egreso
+        BigDecimal montoDisponible = presupuestoCategoriaService.calcularMontoDisponible(
+                parejaId, request.getPeriodoId(), request.getCategoriaId());
+        
+        // Validar que el monto del egreso no exceda el disponible
+        if (request.getMontoTotal().compareTo(montoDisponible) > 0) {
+            throw new IllegalArgumentException("No es posible crear este egreso porque supera los límites definidos");
         }
 
         // Crear el egreso
@@ -152,6 +177,28 @@ public class EgresoService {
         return ingresos.stream()
                 .filter(ingreso -> ingreso.getUsuarioId().equals(usuarioId))
                 .map(Ingreso::getMonto)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal calcularIngresosTotalesPareja(Integer parejaId) {
+        List<Ingreso> ingresos = ingresoRepository.findByParejaIdOrderByFechaDesc(parejaId);
+        return ingresos.stream()
+                .map(Ingreso::getMonto)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Calcula los egresos por categoría excluyendo un egreso específico
+     * Útil para validar al actualizar un egreso
+     */
+    private BigDecimal calcularEgresosPorCategoriaExcluyendo(
+            Integer parejaId, Integer categoriaId, Integer presupuestoId, Integer egresoIdExcluir) {
+        List<Egreso> egresos = egresoRepository.findByParejaIdOrderByFechaDesc(parejaId);
+        return egresos.stream()
+                .filter(egreso -> egreso.getCategoriaId().equals(categoriaId))
+                .filter(egreso -> egreso.getPeriodoId().equals(presupuestoId))
+                .filter(egreso -> !egreso.getId().equals(egresoIdExcluir)) // Excluir el egreso actual
+                .map(Egreso::getMontoTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
@@ -245,6 +292,36 @@ public class EgresoService {
         
         if (!presupuesto.getParejaId().equals(egreso.getParejaId())) {
             throw new IllegalArgumentException("El período no pertenece a tu pareja");
+        }
+
+        // Validar que existe un presupuesto para esta categoría en este período
+        PresupuestoCategoria presupuestoCategoria = presupuestoCategoriaRepository
+                .findByPresupuestoIdAndCategoriaId(request.getPeriodoId(), request.getCategoriaId())
+                .orElse(null);
+        
+        if (presupuestoCategoria == null) {
+            throw new IllegalArgumentException("No existe un presupuesto asignado para esta categoría en el período seleccionado");
+        }
+
+        // Calcular el monto disponible antes de actualizar el egreso
+        // Necesitamos excluir el egreso actual del cálculo de monto gastado
+        BigDecimal montoGastadoActual = calcularEgresosPorCategoriaExcluyendo(
+                egreso.getParejaId(), request.getCategoriaId(), request.getPeriodoId(), egresoId);
+        
+        // Calcular ingresos totales
+        BigDecimal ingresosTotales = calcularIngresosTotalesPareja(egreso.getParejaId());
+        
+        // Calcular monto asignado
+        BigDecimal montoAsignado = ingresosTotales
+                .multiply(presupuestoCategoria.getPorcentaje())
+                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+        
+        // Monto disponible = asignado - gastado (sin incluir el egreso actual)
+        BigDecimal montoDisponible = montoAsignado.subtract(montoGastadoActual);
+        
+        // Validar que el nuevo monto del egreso no exceda el disponible
+        if (request.getMontoTotal().compareTo(montoDisponible) > 0) {
+            throw new IllegalArgumentException("No es posible crear este egreso porque supera los límites definidos");
         }
 
         // Actualizar el egreso

@@ -131,6 +131,7 @@ const handleLogin = async () => {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // Incluir cookies en la petición
       body: JSON.stringify(requestData)
     })
 
@@ -143,17 +144,9 @@ const handleLogin = async () => {
       return
     }
 
-    // Login exitoso - guardar el token
+    // Login exitoso - los tokens se guardan automáticamente en cookies HTTP-only por el servidor
     if (data.token) {
-      // Guardar el access token en localStorage
-      localStorage.setItem('authToken', data.token)
-      
-      // Guardar el refresh token si está disponible
-      if (data.refreshToken) {
-        localStorage.setItem('refreshToken', data.refreshToken)
-      }
-      
-      // Guardar datos del usuario
+      // Guardar datos del usuario en localStorage (los tokens están en cookies HTTP-only)
       localStorage.setItem('userData', JSON.stringify({
         id: data.id,
         nombre: data.nombre,

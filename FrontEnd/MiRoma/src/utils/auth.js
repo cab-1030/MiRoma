@@ -1,55 +1,68 @@
 /**
  * Utilidades para manejo de autenticación JWT
+ * Los tokens ahora se almacenan en cookies HTTP-only, Secure y SameSite
  */
 import { API_ENDPOINTS } from '../config/api'
 
 /**
- * Obtiene el token JWT almacenado en localStorage
- * @returns {string|null} El token JWT o null si no existe
+ * Obtiene el token JWT de las cookies
+ * Nota: Como las cookies son HTTP-only, no podemos leerlas desde JavaScript
+ * El token se envía automáticamente en las peticiones
+ * @returns {string|null} Siempre null, ya que las cookies HTTP-only no son accesibles desde JS
  */
 export function getAuthToken() {
-  return localStorage.getItem('authToken')
+  // Las cookies HTTP-only no son accesibles desde JavaScript
+  // El navegador las envía automáticamente en las peticiones
+  return null
 }
 
 /**
- * Guarda el token JWT en localStorage
- * @param {string} token - El token JWT a guardar
+ * Guarda el token JWT en cookies (manejado por el servidor)
+ * @param {string} token - El token JWT a guardar (ya no se usa, el servidor lo maneja)
  */
 export function setAuthToken(token) {
-  localStorage.setItem('authToken', token)
+  // Los tokens ahora se establecen en cookies por el servidor
+  // No necesitamos hacer nada aquí
 }
 
 /**
- * Obtiene el refresh token almacenado en localStorage
- * @returns {string|null} El refresh token o null si no existe
+ * Obtiene el refresh token de las cookies
+ * Nota: Como las cookies son HTTP-only, no podemos leerlas desde JavaScript
+ * @returns {string|null} Siempre null, ya que las cookies HTTP-only no son accesibles desde JS
  */
 export function getRefreshToken() {
-  return localStorage.getItem('refreshToken')
+  // Las cookies HTTP-only no son accesibles desde JavaScript
+  return null
 }
 
 /**
- * Guarda el refresh token en localStorage
- * @param {string} token - El refresh token a guardar
+ * Guarda el refresh token en cookies (manejado por el servidor)
+ * @param {string} token - El refresh token a guardar (ya no se usa, el servidor lo maneja)
  */
 export function setRefreshToken(token) {
-  localStorage.setItem('refreshToken', token)
+  // Los tokens ahora se establecen en cookies por el servidor
+  // No necesitamos hacer nada aquí
 }
 
 /**
- * Elimina el token JWT de localStorage
+ * Elimina los tokens (las cookies se eliminan en el servidor durante logout)
  */
 export function removeAuthToken() {
-  localStorage.removeItem('authToken')
-  localStorage.removeItem('refreshToken')
+  // Las cookies se eliminan automáticamente cuando el servidor las establece con Max-Age=0
+  // Solo eliminamos datos del usuario de localStorage
   localStorage.removeItem('userData')
 }
 
 /**
  * Verifica si el usuario está autenticado
- * @returns {boolean} true si existe un token, false en caso contrario
+ * Como las cookies HTTP-only no son accesibles, verificamos si hay datos de usuario
+ * @returns {boolean} true si hay datos de usuario, false en caso contrario
  */
 export function isAuthenticated() {
-  return getAuthToken() !== null
+  // Verificar si hay datos de usuario almacenados
+  // El token real está en una cookie HTTP-only que el navegador envía automáticamente
+  const userData = getUserData()
+  return userData !== null && userData.id !== null
 }
 
 /**
@@ -62,12 +75,14 @@ export function getUserData() {
 }
 
 /**
- * Obtiene el header Authorization con el token JWT
- * @returns {Object} Objeto con el header Authorization
+ * Obtiene los headers para peticiones autenticadas
+ * Nota: El token se envía automáticamente en cookies, pero mantenemos el header para compatibilidad
+ * @returns {Object} Objeto con headers (incluyendo credentials)
  */
 export function getAuthHeader() {
-  const token = getAuthToken()
-  return token ? { 'Authorization': `Bearer ${token}` } : {}
+  // Las cookies se envían automáticamente, pero no incluimos el header Authorization
+  // ya que el token está en cookies HTTP-only
+  return {}
 }
 
 /**
@@ -75,20 +90,15 @@ export function getAuthHeader() {
  * @returns {Promise<boolean>} true si se refrescó exitosamente, false en caso contrario
  */
 export async function refreshAccessToken() {
-  const refreshToken = getRefreshToken()
-  
-  if (!refreshToken) {
-    console.warn('No hay refresh token disponible')
-    return false
-  }
-
   try {
+    // El refresh token se envía automáticamente en la cookie
     const response = await fetch(`${API_ENDPOINTS.AUTH}/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ refreshToken })
+      credentials: 'include', // Incluir cookies en la petición
+      body: JSON.stringify({}) // El refresh token viene de la cookie
     })
 
     if (!response.ok) {
@@ -99,13 +109,8 @@ export async function refreshAccessToken() {
 
     const data = await response.json()
     
-    // Guardar los nuevos tokens
-    if (data.token) {
-      setAuthToken(data.token)
-    }
-    if (data.refreshToken) {
-      setRefreshToken(data.refreshToken)
-    }
+    // Los nuevos tokens se establecen automáticamente en cookies por el servidor
+    // No necesitamos guardarlos manualmente
 
     return true
   } catch (error) {
@@ -135,39 +140,35 @@ export function isTokenExpired() {
  */
 export async function authenticatedFetch(url, options = {}) {
   const { retryOn401 = true, ...fetchOptions } = options
-  const token = getAuthToken()
   
   const headers = {
     'Content-Type': 'application/json',
     ...fetchOptions.headers
   }
   
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
+  // Las cookies se envían automáticamente con credentials: 'include'
+  // No necesitamos agregar el header Authorization manualmente
   
   let response = await fetch(url, {
     ...fetchOptions,
-    headers
+    headers,
+    credentials: 'include' // Incluir cookies en la petición
   })
 
-  // Si recibimos 401 y tenemos refresh token, intentar refrescar
-  if (response.status === 401 && retryOn401 && getRefreshToken()) {
+  // Si recibimos 401, intentar refrescar el token
+  if (response.status === 401 && retryOn401) {
     console.log('Token expirado, intentando refrescar...')
     const refreshed = await refreshAccessToken()
     
     if (refreshed) {
-      // Reintentar la petición con el nuevo token
-      const newToken = getAuthToken()
-      if (newToken) {
-        headers['Authorization'] = `Bearer ${newToken}`
-        response = await fetch(url, {
-          ...fetchOptions,
-          headers
-        })
-      }
+      // Reintentar la petición (las cookies se envían automáticamente)
+      response = await fetch(url, {
+        ...fetchOptions,
+        headers,
+        credentials: 'include'
+      })
     } else {
-      // Si no se pudo refrescar, limpiar tokens y redirigir al login
+      // Si no se pudo refrescar, limpiar datos y redirigir al login
       removeAuthToken()
       // Nota: La redirección al login debería manejarse en el componente que llama a esta función
     }
@@ -197,14 +198,14 @@ export async function logout(options = {}) {
     // Notificar al servidor (opcional)
     if (notifyServer) {
       const API_BASE_URL = API_ENDPOINTS.AUTH
-      const refreshToken = getRefreshToken()
       try {
         await fetch(`${API_BASE_URL}/logout`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ refreshToken: refreshToken || null })
+          credentials: 'include', // Incluir cookies para que el servidor pueda invalidar el token
+          body: JSON.stringify({})
         })
       } catch (error) {
         // Si falla la notificación al servidor, continuamos con el logout local

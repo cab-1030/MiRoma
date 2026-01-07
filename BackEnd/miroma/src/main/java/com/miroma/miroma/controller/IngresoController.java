@@ -2,6 +2,7 @@ package com.miroma.miroma.controller;
 
 import com.miroma.miroma.dto.IngresoRequest;
 import com.miroma.miroma.dto.IngresoResponse;
+import com.miroma.miroma.security.SecurityUtils;
 import com.miroma.miroma.service.IngresoService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,24 +21,27 @@ public class IngresoController {
     @Autowired
     private IngresoService ingresoService;
 
+    @Autowired
+    private SecurityUtils securityUtils;
+
     @PostMapping
     public ResponseEntity<?> crearIngreso(
-            @RequestAttribute("userId") Integer userId,
             @Valid @RequestBody IngresoRequest request) {
+        Integer userId = securityUtils.getCurrentUserId();
         IngresoResponse response = ingresoService.crearIngreso(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping
-    public ResponseEntity<?> obtenerIngresos(@RequestAttribute("userId") Integer userId) {
+    public ResponseEntity<?> obtenerIngresos() {
+        Integer userId = securityUtils.getCurrentUserId();
         List<IngresoResponse> ingresos = ingresoService.obtenerIngresosPorUsuario(userId);
         return ResponseEntity.ok(ingresos);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> obtenerIngresoPorId(
-            @PathVariable Integer id,
-            @RequestAttribute("userId") Integer userId) {
+    public ResponseEntity<?> obtenerIngresoPorId(@PathVariable Integer id) {
+        Integer userId = securityUtils.getCurrentUserId();
         IngresoResponse ingreso = ingresoService.obtenerIngresoPorId(id, userId);
         return ResponseEntity.ok(ingreso);
     }
@@ -45,16 +49,15 @@ public class IngresoController {
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizarIngreso(
             @PathVariable Integer id,
-            @RequestAttribute("userId") Integer userId,
             @Valid @RequestBody IngresoRequest request) {
+        Integer userId = securityUtils.getCurrentUserId();
         IngresoResponse response = ingresoService.actualizarIngreso(id, userId, request);
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> eliminarIngreso(
-            @PathVariable Integer id,
-            @RequestAttribute("userId") Integer userId) {
+    public ResponseEntity<?> eliminarIngreso(@PathVariable Integer id) {
+        Integer userId = securityUtils.getCurrentUserId();
         ingresoService.eliminarIngreso(id, userId);
         Map<String, String> response = new HashMap<>();
         response.put("message", "Ingreso eliminado exitosamente");

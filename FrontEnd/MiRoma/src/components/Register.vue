@@ -111,6 +111,9 @@
               {{ showPassword ? '👁️' : '👁️‍🗨️' }}
             </button>
           </div>
+          <p class="password-hint">
+            La contraseña debe tener mínimo 12 caracteres, incluir mayúsculas, minúsculas y caracteres especiales (!@#$%^&*()_+-=[]{}|;:,.<>?)
+          </p>
         </div>
 
         <div class="form-group">
@@ -254,13 +257,16 @@ const handleRegister = async () => {
   }
 
   // Validar contraseña
-  if (!validatePassword(formData.value.password)) {
-    errorMessage.value = 'La contraseña debe tener al menos 6 caracteres.'
+  const passwordValidation = validatePassword(formData.value.password)
+  if (!passwordValidation.valid) {
+    errorMessage.value = passwordValidation.message
     return
   }
 
-  // Validar que no contenga caracteres peligrosos
-  if (!isInputSafe(formData.value.password)) {
+  // Validar que no contenga caracteres peligrosos (excepto caracteres especiales permitidos)
+  // Los caracteres especiales de contraseña están permitidos, solo validamos SQL injection básico
+  const dangerousSqlPattern = /['";\\]|(--)|(\/\*)|(\*\/)|(union\s+select)|(drop\s+table)|(delete\s+from)|(insert\s+into)|(update\s+set)|(exec\s*\()/gi
+  if (dangerousSqlPattern.test(formData.value.password)) {
     errorMessage.value = 'La contraseña contiene caracteres no permitidos.'
     return
   }
@@ -295,6 +301,7 @@ const handleRegister = async () => {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // Incluir cookies en la petición
       body: JSON.stringify(requestData)
     })
 
@@ -479,6 +486,13 @@ const handleRegister = async () => {
   color: #ef4444;
   font-size: 0.75rem;
   margin-top: 0.25rem;
+}
+
+.password-hint {
+  color: #6b7280;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  line-height: 1.4;
 }
 
 .error-alert {

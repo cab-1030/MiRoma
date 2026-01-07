@@ -76,6 +76,12 @@ const routes = [
     name: 'DashboardResumen',
     component: () => import('../views/Dashboard.vue'),
     beforeEnter: requireAuth
+  },
+  {
+    path: '/dashboard/comportamientos-extranos',
+    name: 'DashboardComportamientosExtranos',
+    component: () => import('../views/Dashboard.vue'),
+    beforeEnter: requireAuth
   }
 ]
 

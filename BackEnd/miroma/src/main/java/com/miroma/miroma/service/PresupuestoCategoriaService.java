@@ -302,6 +302,49 @@ public class PresupuestoCategoriaService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
+    /**
+     * Obtiene el usuario para validación (método auxiliar para controllers)
+     */
+    public Usuario obtenerUsuarioParaValidacion(Integer userId) {
+        return usuarioRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+    }
+
+    /**
+     * Calcula el monto disponible para una categoría en un presupuesto específico
+     * Útil para validar antes de crear egresos
+     * 
+     * @param parejaId ID de la pareja
+     * @param presupuestoId ID del presupuesto
+     * @param categoriaId ID de la categoría
+     * @return Monto disponible (asignado - gastado)
+     */
+    public BigDecimal calcularMontoDisponible(Integer parejaId, Integer presupuestoId, Integer categoriaId) {
+        // Buscar el presupuesto categoría
+        PresupuestoCategoria presupuestoCategoria = presupuestoCategoriaRepository
+                .findByPresupuestoIdAndCategoriaId(presupuestoId, categoriaId)
+                .orElse(null);
+        
+        // Si no existe presupuesto para esta categoría, retornar 0
+        if (presupuestoCategoria == null) {
+            return BigDecimal.ZERO;
+        }
+        
+        // Calcular ingresos totales de la pareja
+        BigDecimal ingresosTotales = calcularIngresosTotalesPareja(parejaId);
+        
+        // Calcular monto asignado = (porcentaje / 100) * ingresos totales
+        BigDecimal montoAsignado = ingresosTotales
+                .multiply(presupuestoCategoria.getPorcentaje())
+                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+        
+        // Calcular monto gastado
+        BigDecimal montoGastado = calcularEgresosPorCategoria(parejaId, categoriaId, presupuestoId);
+        
+        // Monto disponible = asignado - gastado
+        return montoAsignado.subtract(montoGastado);
+    }
+
     private PresupuestoCategoriaResponse mapToResponse(
             PresupuestoCategoria presupuestoCategoria, Presupuesto presupuesto, 
             CategoriaEgreso categoria, BigDecimal ingresosTotales) {

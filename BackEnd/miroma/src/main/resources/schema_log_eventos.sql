@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS log_eventos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     usuario_id INT NOT NULL,
-    accion VARCHAR(500) NOT NULL,
+    accion VARCHAR(1000) NOT NULL,
     fecha DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_usuario_id (usuario_id),
     INDEX idx_fecha (fecha),

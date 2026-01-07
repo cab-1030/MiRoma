@@ -14,7 +14,7 @@ public class LogEvento {
     @Column(name = "usuario_id", nullable = false)
     private Integer usuarioId;
 
-    @Column(name = "accion", nullable = false, length = 500)
+    @Column(name = "accion", nullable = false, length = 1000)
     private String accion;
 
     @Column(name = "fecha", nullable = false, updatable = false)

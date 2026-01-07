@@ -3,6 +3,7 @@ package com.miroma.miroma.controller;
 import com.miroma.miroma.dto.LogEventoResponse;
 import com.miroma.miroma.entity.LogEvento;
 import com.miroma.miroma.repository.LogEventoRepository;
+import com.miroma.miroma.security.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,12 +21,15 @@ public class LogEventoController {
     @Autowired
     private LogEventoRepository logEventoRepository;
 
+    @Autowired
+    private SecurityUtils securityUtils;
+
     @GetMapping
     public ResponseEntity<?> obtenerEventosPorUsuario(
-            @RequestAttribute("userId") Integer userId,
             @RequestParam(required = false) String fechaInicio,
             @RequestParam(required = false) String fechaFin,
             @RequestParam(required = false) String tipoAccion) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             List<LogEvento> eventos;
             

@@ -188,10 +188,14 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { authenticatedFetch } from '../utils/auth'
 import { validateAndSanitizeNumber, validateAndSanitizeText, validateAndSanitizeDate } from '../utils/validation'
+import { isAuthenticated } from '../utils/auth'
 
 import { API_ENDPOINTS } from '../config/api'
+
+const router = useRouter()
 
 const API_BASE_URL = API_ENDPOINTS.EGRESOS
 const API_CATEGORIAS = API_ENDPOINTS.CATEGORIAS
@@ -271,13 +275,45 @@ const cargarEgresos = async () => {
     }
 
     const response = await authenticatedFetch(url)
-    const data = await response.json()
 
     if (!response.ok) {
-      errorMessageList.value = data.error || 'Error al cargar egresos'
+      // Intentar parsear el JSON solo si hay contenido
+      let errorMessage = 'Error al cargar egresos'
+      try {
+        const contentType = response.headers.get('content-type')
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json()
+          errorMessage = data.error || errorMessage
+        } else {
+          // Si es 403 o 401, probablemente es un problema de autenticación
+          if (response.status === 403 || response.status === 401) {
+            errorMessage = response.status === 403 
+              ? 'No tienes permisos para acceder a este recurso. Por favor, inicia sesión nuevamente.'
+              : 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.'
+            
+            // Si el usuario no está autenticado, redirigir al login
+            if (!isAuthenticated()) {
+              setTimeout(() => {
+                router.push('/login?redirect=' + encodeURIComponent(router.currentRoute.value.fullPath))
+              }, 2000)
+            }
+          } else {
+            errorMessage = `Error ${response.status}: ${response.statusText}`
+          }
+        }
+      } catch (e) {
+        // Si no se puede parsear JSON, usar el mensaje de error del status
+        if (response.status === 403) {
+          errorMessage = 'No tienes permisos para acceder a este recurso. Por favor, inicia sesión nuevamente.'
+        } else if (response.status === 401) {
+          errorMessage = 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.'
+        }
+      }
+      errorMessageList.value = errorMessage
       return
     }
 
+    const data = await response.json()
     egresos.value = data
   } catch (error) {
     console.error('Error al cargar egresos:', error)
@@ -334,6 +370,43 @@ const guardarEgreso = async () => {
     return
   }
 
+  // Validar presupuesto disponible antes de crear (solo para nuevos egresos)
+  if (!egresoEditando.value) {
+    try {
+      const montoDisponibleResponse = await authenticatedFetch(
+        `${API_ENDPOINTS.PRESUPUESTOS_CATEGORIAS}/monto-disponible?presupuestoId=${periodoId}&categoriaId=${categoriaId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      const montoDisponibleData = await montoDisponibleResponse.json()
+
+      if (montoDisponibleResponse.ok && montoDisponibleData.montoDisponible !== undefined) {
+        const montoDisponible = parseFloat(montoDisponibleData.montoDisponible)
+        
+        if (montoTotalValidado > montoDisponible) {
+          errorMessage.value = 'No es posible crear este egreso porque supera los límites definidos'
+          isLoading.value = false
+          return
+        }
+      } else {
+        // Si no hay presupuesto asignado, también rechazar
+        errorMessage.value = 'No existe un presupuesto asignado para esta categoría en el período seleccionado'
+        isLoading.value = false
+        return
+      }
+    } catch (error) {
+      console.error('Error al validar presupuesto:', error)
+      // Continuar con la creación, el backend también validará
+    }
+  } else {
+    // Para edición, el backend validará el presupuesto
+  }
+
   try {
     const payload = {
       montoTotal: montoTotalValidado,
@@ -382,6 +455,7 @@ const editarEgreso = (egreso) => {
   formData.value = {
     montoTotal: egreso.montoTotal.toString(),
     categoriaId: egreso.categoriaId.toString(),
+    periodoId: egreso.periodoId.toString(),
     descripcion: egreso.descripcion || '',
     fecha: egreso.fecha
   }

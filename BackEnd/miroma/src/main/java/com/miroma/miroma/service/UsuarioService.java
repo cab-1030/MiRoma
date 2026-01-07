@@ -1,5 +1,6 @@
 package com.miroma.miroma.service;
 
+import com.miroma.miroma.dto.ChangePasswordRequest;
 import com.miroma.miroma.dto.CheckUserResponse;
 import com.miroma.miroma.dto.LinkPartnerRequest;
 import com.miroma.miroma.dto.LinkPartnerResponse;
@@ -13,7 +14,6 @@ import com.miroma.miroma.exception.ResourceNotFoundException;
 import com.miroma.miroma.exception.UnauthorizedException;
 import com.miroma.miroma.exception.ValidationException;
 import com.miroma.miroma.repository.UsuarioRepository;
-import com.miroma.miroma.service.LoginAttemptService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +45,9 @@ public class UsuarioService {
 
     @Autowired
     private LoginAttemptService loginAttemptService;
+
+    @Autowired
+    private com.miroma.miroma.service.TokenBlacklistService tokenBlacklistService;
 
     @Transactional
     public RegisterResponse registrarUsuario(RegisterRequest request) {
@@ -200,8 +203,8 @@ public class UsuarioService {
         // Resetear intentos fallidos después de login exitoso
         loginAttemptService.resetearIntentos(email);
 
-        // Generar access token JWT
-        String token = jwtService.generateToken(usuario.getId(), usuario.getEmail(), usuario.getNombre());
+        // Generar access token JWT con versión de token
+        String token = jwtService.generateToken(usuario.getId(), usuario.getEmail(), usuario.getNombre(), usuario.getTokenVersion());
 
         // Generar y guardar refresh token
         com.miroma.miroma.entity.RefreshToken refreshTokenEntity = refreshTokenService.createRefreshToken(usuario.getId());
@@ -292,6 +295,48 @@ public class UsuarioService {
         response.setPartnerNombre(pareja.getNombre());
 
         return response;
+    }
+
+    @Transactional
+    public void changePassword(Integer userId, ChangePasswordRequest request) {
+        // Validar que las nuevas contraseñas coincidan
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new ValidationException("Las nuevas contraseñas no coinciden");
+        }
+
+        // Obtener el usuario
+        Usuario usuario = usuarioRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("usuario", userId));
+
+        // Verificar que el usuario esté activo
+        if (usuario.getActivo() == null || usuario.getActivo() != 1) {
+            throw new UnauthorizedException("Usuario inactivo");
+        }
+
+        // Verificar la contraseña actual
+        if (!passwordService.verifyPassword(request.getCurrentPassword(), usuario.getPassword())) {
+            throw new UnauthorizedException("La contraseña actual es incorrecta");
+        }
+
+        // Validar que la nueva contraseña sea diferente a la actual
+        if (passwordService.verifyPassword(request.getNewPassword(), usuario.getPassword())) {
+            throw new ValidationException("La nueva contraseña debe ser diferente a la actual");
+        }
+
+        // Hash de la nueva contraseña
+        String hashedPassword = passwordService.hashPassword(request.getNewPassword());
+        usuario.setPassword(hashedPassword);
+
+        // Incrementar la versión del token para invalidar todos los tokens anteriores
+        usuario.setTokenVersion(usuario.getTokenVersion() != null ? usuario.getTokenVersion() + 1 : 1);
+
+        // Guardar el usuario
+        usuarioRepository.save(usuario);
+
+        // Limpiar la blacklist del usuario (los tokens antiguos ya no serán válidos por la versión)
+        tokenBlacklistService.invalidateAllUserTokens(userId);
+
+        logger.info("Contraseña cambiada exitosamente para usuario: {}", usuario.getEmail());
     }
 }
 

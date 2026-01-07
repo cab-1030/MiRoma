@@ -2,6 +2,7 @@ package com.miroma.miroma.controller;
 
 import com.miroma.miroma.dto.EgresoRequest;
 import com.miroma.miroma.dto.EgresoResponse;
+import com.miroma.miroma.security.SecurityUtils;
 import com.miroma.miroma.service.EgresoService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,10 +21,13 @@ public class EgresoController {
     @Autowired
     private EgresoService egresoService;
 
+    @Autowired
+    private SecurityUtils securityUtils;
+
     @PostMapping
     public ResponseEntity<?> crearEgreso(
-            @RequestAttribute("userId") Integer userId,
             @Valid @RequestBody EgresoRequest request) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             EgresoResponse response = egresoService.crearEgreso(userId, request);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -41,9 +45,9 @@ public class EgresoController {
 
     @GetMapping
     public ResponseEntity<?> obtenerEgresos(
-            @RequestAttribute("userId") Integer userId,
             @RequestParam(required = false) String fechaInicio,
             @RequestParam(required = false) String fechaFin) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             List<EgresoResponse> egresos;
             if (fechaInicio != null && fechaFin != null) {
@@ -65,9 +69,8 @@ public class EgresoController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> obtenerEgresoPorId(
-            @PathVariable Integer id,
-            @RequestAttribute("userId") Integer userId) {
+    public ResponseEntity<?> obtenerEgresoPorId(@PathVariable Integer id) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             EgresoResponse egreso = egresoService.obtenerEgresoPorId(id, userId);
             return ResponseEntity.ok(egreso);
@@ -86,8 +89,8 @@ public class EgresoController {
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizarEgreso(
             @PathVariable Integer id,
-            @RequestAttribute("userId") Integer userId,
             @Valid @RequestBody EgresoRequest request) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             EgresoResponse response = egresoService.actualizarEgreso(id, userId, request);
             return ResponseEntity.ok(response);
@@ -104,9 +107,8 @@ public class EgresoController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> eliminarEgreso(
-            @PathVariable Integer id,
-            @RequestAttribute("userId") Integer userId) {
+    public ResponseEntity<?> eliminarEgreso(@PathVariable Integer id) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             egresoService.eliminarEgreso(id, userId);
             Map<String, String> response = new HashMap<>();

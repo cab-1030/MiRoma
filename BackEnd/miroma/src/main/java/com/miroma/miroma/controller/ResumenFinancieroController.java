@@ -1,6 +1,7 @@
 package com.miroma.miroma.controller;
 
 import com.miroma.miroma.dto.ResumenPeriodoResponse;
+import com.miroma.miroma.security.SecurityUtils;
 import com.miroma.miroma.service.ResumenFinancieroService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -17,8 +18,12 @@ public class ResumenFinancieroController {
     @Autowired
     private ResumenFinancieroService resumenFinancieroService;
 
+    @Autowired
+    private SecurityUtils securityUtils;
+
     @GetMapping
-    public ResponseEntity<?> obtenerResumen(@RequestAttribute("userId") Integer userId) {
+    public ResponseEntity<?> obtenerResumen() {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             List<ResumenPeriodoResponse> resumen = resumenFinancieroService.obtenerResumenPorUsuario(userId);
             return ResponseEntity.ok(resumen);

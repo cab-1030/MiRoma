@@ -35,10 +35,14 @@ public class Usuario {
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private java.sql.Timestamp fechaCreacion;
 
+    @Column(name = "token_version", nullable = false)
+    private Integer tokenVersion = 1;
+
     // Constructores
     public Usuario() {
         this.fechaCreacion = new java.sql.Timestamp(System.currentTimeMillis());
         this.activo = 1;
+        this.tokenVersion = 1;
     }
 
     @PrePersist
@@ -122,6 +126,14 @@ public class Usuario {
 
     public void setFechaCreacion(java.sql.Timestamp fechaCreacion) {
         this.fechaCreacion = fechaCreacion;
+    }
+
+    public Integer getTokenVersion() {
+        return tokenVersion;
+    }
+
+    public void setTokenVersion(Integer tokenVersion) {
+        this.tokenVersion = tokenVersion;
     }
 }
 

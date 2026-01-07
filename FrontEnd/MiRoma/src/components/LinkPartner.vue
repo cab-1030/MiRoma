@@ -122,6 +122,7 @@ const handleCheckPartner = async () => {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // Incluir cookies en la petición
       body: JSON.stringify({ email: emailSanitizado })
     })
 

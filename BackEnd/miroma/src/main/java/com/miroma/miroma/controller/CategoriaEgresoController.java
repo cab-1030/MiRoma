@@ -2,6 +2,7 @@ package com.miroma.miroma.controller;
 
 import com.miroma.miroma.dto.CategoriaEgresoRequest;
 import com.miroma.miroma.dto.CategoriaEgresoResponse;
+import com.miroma.miroma.security.SecurityUtils;
 import com.miroma.miroma.service.CategoriaEgresoService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,10 +21,13 @@ public class CategoriaEgresoController {
     @Autowired
     private CategoriaEgresoService categoriaEgresoService;
 
+    @Autowired
+    private SecurityUtils securityUtils;
+
     @PostMapping
     public ResponseEntity<?> crearCategoria(
-            @RequestAttribute("userId") Integer userId,
             @Valid @RequestBody CategoriaEgresoRequest request) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             CategoriaEgresoResponse response = categoriaEgresoService.crearCategoria(userId, request);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -72,8 +76,8 @@ public class CategoriaEgresoController {
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizarCategoria(
             @PathVariable Integer id,
-            @RequestAttribute("userId") Integer userId,
             @Valid @RequestBody CategoriaEgresoRequest request) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             CategoriaEgresoResponse response = categoriaEgresoService.actualizarCategoria(id, userId, request);
             return ResponseEntity.ok(response);
@@ -90,9 +94,8 @@ public class CategoriaEgresoController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> eliminarCategoria(
-            @PathVariable Integer id,
-            @RequestAttribute("userId") Integer userId) {
+    public ResponseEntity<?> eliminarCategoria(@PathVariable Integer id) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             categoriaEgresoService.eliminarCategoria(id, userId);
             Map<String, String> response = new HashMap<>();

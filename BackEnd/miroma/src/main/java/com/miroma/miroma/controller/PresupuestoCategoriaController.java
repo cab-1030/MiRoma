@@ -2,6 +2,7 @@ package com.miroma.miroma.controller;
 
 import com.miroma.miroma.dto.PresupuestoCategoriaRequest;
 import com.miroma.miroma.dto.PresupuestoCategoriaResponse;
+import com.miroma.miroma.security.SecurityUtils;
 import com.miroma.miroma.service.PresupuestoCategoriaService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,10 +22,13 @@ public class PresupuestoCategoriaController {
     @Autowired
     private PresupuestoCategoriaService presupuestoCategoriaService;
 
+    @Autowired
+    private SecurityUtils securityUtils;
+
     @PostMapping
     public ResponseEntity<?> crearPresupuestoCategoria(
-            @RequestAttribute("userId") Integer userId,
             @Valid @RequestBody PresupuestoCategoriaRequest request) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             PresupuestoCategoriaResponse response = presupuestoCategoriaService
                     .crearPresupuestoCategoria(userId, request);
@@ -43,8 +47,8 @@ public class PresupuestoCategoriaController {
 
     @GetMapping("/presupuesto/{presupuestoId}")
     public ResponseEntity<?> obtenerPresupuestosCategoriasPorPresupuesto(
-            @PathVariable Integer presupuestoId,
-            @RequestAttribute("userId") Integer userId) {
+            @PathVariable Integer presupuestoId) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             List<PresupuestoCategoriaResponse> presupuestosCategorias = presupuestoCategoriaService
                     .obtenerPresupuestosCategoriasPorPresupuesto(presupuestoId, userId);
@@ -62,8 +66,8 @@ public class PresupuestoCategoriaController {
     }
 
     @GetMapping
-    public ResponseEntity<?> obtenerTodosLosPresupuestosCategorias(
-            @RequestAttribute("userId") Integer userId) {
+    public ResponseEntity<?> obtenerTodosLosPresupuestosCategorias() {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             List<PresupuestoCategoriaResponse> presupuestosCategorias = presupuestoCategoriaService
                     .obtenerTodosLosPresupuestosCategorias(userId);
@@ -81,9 +85,8 @@ public class PresupuestoCategoriaController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> obtenerPresupuestoCategoriaPorId(
-            @PathVariable Integer id,
-            @RequestAttribute("userId") Integer userId) {
+    public ResponseEntity<?> obtenerPresupuestoCategoriaPorId(@PathVariable Integer id) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             PresupuestoCategoriaResponse presupuestoCategoria = presupuestoCategoriaService
                     .obtenerPresupuestoCategoriaPorId(id, userId);
@@ -102,8 +105,8 @@ public class PresupuestoCategoriaController {
 
     @GetMapping("/presupuesto/{presupuestoId}/porcentaje-total")
     public ResponseEntity<?> obtenerPorcentajeTotalPorPresupuesto(
-            @PathVariable Integer presupuestoId,
-            @RequestAttribute("userId") Integer userId) {
+            @PathVariable Integer presupuestoId) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             BigDecimal porcentajeTotal = presupuestoCategoriaService
                     .obtenerPorcentajeTotalPorPresupuesto(presupuestoId, userId);
@@ -126,8 +129,8 @@ public class PresupuestoCategoriaController {
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizarPresupuestoCategoria(
             @PathVariable Integer id,
-            @RequestAttribute("userId") Integer userId,
             @Valid @RequestBody PresupuestoCategoriaRequest request) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             PresupuestoCategoriaResponse response = presupuestoCategoriaService
                     .actualizarPresupuestoCategoria(id, userId, request);
@@ -145,9 +148,8 @@ public class PresupuestoCategoriaController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> eliminarPresupuestoCategoria(
-            @PathVariable Integer id,
-            @RequestAttribute("userId") Integer userId) {
+    public ResponseEntity<?> eliminarPresupuestoCategoria(@PathVariable Integer id) {
+        Integer userId = securityUtils.getCurrentUserId();
         try {
             presupuestoCategoriaService.eliminarPresupuestoCategoria(id, userId);
             Map<String, String> response = new HashMap<>();
@@ -161,6 +163,38 @@ public class PresupuestoCategoriaController {
             e.printStackTrace();
             Map<String, String> error = new HashMap<>();
             error.put("error", "Error al eliminar presupuesto categoría: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    @GetMapping("/monto-disponible")
+    public ResponseEntity<?> obtenerMontoDisponible(
+            @RequestParam Integer presupuestoId,
+            @RequestParam Integer categoriaId) {
+        Integer userId = securityUtils.getCurrentUserId();
+        try {
+            // Obtener el usuario para validar permisos
+            com.miroma.miroma.entity.Usuario usuario = presupuestoCategoriaService.obtenerUsuarioParaValidacion(userId);
+            
+            Integer parejaId = usuario.getParejaId();
+            if (parejaId == null) {
+                throw new IllegalArgumentException("Debes tener una pareja vinculada");
+            }
+
+            BigDecimal montoDisponible = presupuestoCategoriaService.calcularMontoDisponible(
+                    parejaId, presupuestoId, categoriaId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("montoDisponible", montoDisponible);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Error al obtener monto disponible: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }

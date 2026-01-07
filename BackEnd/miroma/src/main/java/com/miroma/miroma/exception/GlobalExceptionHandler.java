@@ -155,6 +155,40 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Maneja errores de autenticación de Spring Security
+     */
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleSpringSecurityAuthentication(
+            org.springframework.security.core.AuthenticationException ex, HttpServletRequest request) {
+        
+        logger.warn("Authentication failed: {} - Path: {}", ex.getMessage(), request.getRequestURI());
+        
+        ErrorResponse error = new ErrorResponse(
+            "Credenciales inválidas o sesión expirada",
+            "AUTHENTICATION_ERROR",
+            request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+    }
+
+    /**
+     * Maneja errores de autorización de Spring Security
+     */
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleSpringSecurityAccessDenied(
+            org.springframework.security.access.AccessDeniedException ex, HttpServletRequest request) {
+        
+        logger.warn("Access denied: {} - Path: {}", ex.getMessage(), request.getRequestURI());
+        
+        ErrorResponse error = new ErrorResponse(
+            "No tienes permisos para acceder a este recurso",
+            "ACCESS_DENIED",
+            request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    /**
      * Maneja errores de autenticación
      */
     @ExceptionHandler(UnauthorizedException.class)

@@ -47,6 +47,7 @@ export const API_ENDPOINTS = {
   PRESUPUESTOS_CATEGORIAS: `${API_BASE_URL}/api/presupuestos-categorias`,
   RESUMEN_FINANCIERO: `${API_BASE_URL}/api/resumen-financiero`,
   LOG_EVENTOS: `${API_BASE_URL}/api/log-eventos`,
+  COMPORTAMIENTOS_EXTANOS: `${API_BASE_URL}/api/comportamientos-extranos`,
 }
 
 // Exportar configuración completa
